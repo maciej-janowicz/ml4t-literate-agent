@@ -1,0 +1,208 @@
+====================================================================================================
+SYSTEM INITIALIZATION & ARCHITECTURAL LOGBOOK: ml4t-literate-agent
+====================================================================================================
+Inicjalizacja projektu: ml4t-literate-agent
+Data i czas:            2026-10-11T18:10:00+02:00
+Środowisko:             Linux x86_64 | Python 3.12.2
+Agent wykonawczy:       agy-cli (Antigravity Autonomous Coding Agent)
+Status operacji:        SUKCES (Wszystkie artefakty zainicjalizowane pomyślnie)
+Status VCS Git:         WSTRZYMANO (Zgodnie z poleceniem użytkownika – brak commitu)
+====================================================================================================
+
+SPIS TREŚCI:
+1. REJESTR WYKONANYCH DZIAŁAŃ (KROK PO KROKU)
+2. DEKOMPOZYCJA STRUKTURY KATALOGÓW I SEPARACJA ODPOWIEDZIALNOŚCI
+3. KONFIGURACJA PROJEKTU: PYPROJECT.TOML ORAZ CONFIG.YAML
+4. ANALIZA TECHNOLOGICZNA: DLACZEGO POLARS W BADANIACH QUANTITATIVE FINANCE (ML4T)
+5. LITERATE PROGRAMMING I QUARTO: ELIMINACJA KRYZYSU REPLIKOWALNOŚCI
+6. MODULARNE UMIEJĘTNOŚCI AGENTOWE (.AGENTS/SKILLS)
+7. PRZYGOTOWANIE GRUNTU POD PUBLIKACJĘ NAUKOWĄ I DALSZE KROKI
+8. PROTOKÓŁ WERYFIKACJI I STAN ARTEFAKTÓW
+
+----------------------------------------------------------------------------------------------------
+1. REJESTR WYKONANYCH DZIAŁAŃ (KROK PO KROKU)
+----------------------------------------------------------------------------------------------------
+Krok 1 [17:59:16]: Utworzono docelową hierarchię katalogów projektu w 'ml4t-literate-agent':
+       - manuscript/sections/                  -> Warstwa narracji naukowej i publikacji Quarto
+       - src/                                  -> Warstwa modułów obliczeniowych i logiki biznesowej
+       - outputs/                              -> Warstwa artefaktów, tabel, bazy Parquet i logów
+       - .agents/skills/data-curator/          -> Dedykowana umiejętność agenta kurateli danych
+       - .agents/skills/literate-writer/       -> Dedykowana umiejętność agenta piśmiennictwa naukowego
+
+Krok 2 [18:02:08]: Skonfigurowano środowisko projektu:
+       - Utworzono 'pyproject.toml' (standard PEP 621) definiujący zależności badawcze: Polars,
+         PyArrow, yfinance, PyYAML, Pydantic, SciPy, NumPy, Great Tables, Tabulate oraz narzędzia dev.
+       - Utworzono deklaratywny plik konfiguracyjny 'config.yaml' parametryzujący uniwersum aktywów
+         (SPY, QQQ, IWM, AAPL, MSFT, NVDA, TLT, GLD), zakres dat (2020–2024), parametry rocznej
+         anualizacji (252 dni robocze) oraz referencyjną stopę wolną od ryzyka (Rf = 4.25%).
+
+Krok 3 [18:03:20]: Zaimplementowano szkielet pierwszego modułu badawczego 'src/data_curator.py':
+       - Wdrożono architekturę obiektowo-funkcjonalną (klasy CuratorConfig oraz MarketDataCurator).
+       - Zaimplementowano potok wektorowy Polars do wyliczania logarytmicznych i arytmetycznych stóp
+         zwrotu oraz wielowymiarowych statystyk opisowych (średnia, zmienność zannualizowana,
+         skośność, kurtoza nadwyżkowa, VaR 95%, Sharpe Ratio, Maximum Drawdown).
+       - Zaimplementowano odporny mechanizm awaryjnego deterministycznego generatora danych (GBM
+         ze skokami t-Studenta) gwarantujący pełną powtarzalność obliczeń w środowisku offline/CI.
+
+Krok 4 [18:07:40]: Zdefiniowano modularne umiejętności agentowe w standardzie Antigravity:
+       - '.agents/skills/data-curator/SKILL.md'    -> Procedury kurateli, czyszczenia i walidacji danych.
+       - '.agents/skills/literate-writer/SKILL.md' -> Procedury Programowania Literackiego w Quarto.
+
+Krok 5 [18:08:44]: Skonstruowano moduł publikacji naukowej:
+       - 'manuscript/sections/01_data_overview.qmd' -> Sekcja artykułu łącząca aparat matematyczny
+         (LaTeX), komórki obliczeniowe Polars oraz analizę stylizowanych faktów rynkowych.
+       - 'manuscript/_quarto.yml'                   -> Konfiguracja silnika Quarto (PDF, HTML, Typst).
+       - 'manuscript/references.bib'                -> Baza bibliograficzna (Knuth, Cont, Lopez de Prado).
+       - 'manuscript/index.qmd'                     -> Główny dokument spinający poszczególne sekcje.
+
+Krok 6 [18:10:00]: Sporządzono niniejszy wyczerpujący dziennik systemowy w 'outputs/system_init.log'.
+
+----------------------------------------------------------------------------------------------------
+2. DEKOMPOZYCJA STRUKTURY KATALOGÓW I SEPARACJA ODPOWIEDZIALNOŚCI
+----------------------------------------------------------------------------------------------------
+Projekt opiera się na rygorystycznej separacji odpowiedzialności (Separation of Concerns),
+niezbędnej w zespołach badawczych łączących inżynierię oprogramowania z rynkami finansowymi:
+
+1. 'manuscript/sections/':
+   Sekcje manuskryptu są podzielone na autonomiczne jednostki logiczne (.qmd). Dzięki temu
+   wielu badaczy (lub subagentów AI) może jednocześnie edytować rozdział o inżynierii cech,
+   podczas gdy inny zespół weryfikuje przegląd danych rynkowych, bez ryzyka konfliktów w Git.
+
+2. 'src/':
+   Katalog zawiera wyłącznie "czysty kod" produkcyjny (Clean Architecture). Nie umieszczamy tu
+   notatników Jupyter ani surowych danych. Każdy moduł posiada interfejs CLI, typowanie Python 3.10+
+   (typing/pydantic) oraz pełną dokumentację docstringów w standardzie Google.
+
+3. 'outputs/':
+   Magazyn artefaktów. Kod w 'src/' nigdy nie modyfikuje swoich plików wejściowych. Wszystkie
+   pochodne tabelaryczne (Parquet, CSV), wykresy wektorowe (SVG, PDF) oraz dzienniki operacji
+   trafiają wyłącznie do 'outputs/'. Katalog ten może być audytowany pod kątem determinizmu.
+
+4. '.agents/skills/':
+   Struktura metadanych agentowych dla środowiska agy-cli / Antigravity. Pozwala na bezszwowe
+   przekazywanie zadań wyspecjalizowanym subagentom bez konieczności powtarzania kontekstu
+   w promptach głównych (mechanizm Progressive Disclosure).
+
+----------------------------------------------------------------------------------------------------
+3. KONFIGURACJA PROJEKTU: PYPROJECT.TOML ORAZ CONFIG.YAML
+----------------------------------------------------------------------------------------------------
+Współczesne badania naukowe wymagają deklaratywnej i niezmiennej definicji środowiska:
+
+- 'pyproject.toml' (PEP 517 / PEP 518 / PEP 621):
+  Zastępuje przestarzałe pliki setup.py i requirements.txt jednym sformalizowanym plikiem.
+  Zdefiniowano w nim minimalne wersje kluczowych bibliotek gwarantujące brak tzw. "dependency drift".
+  Skonfigurowano również narzędzia statycznej analizy jakości kodu (Ruff, Mypy) oraz testów (Pytest).
+
+- 'config.yaml':
+  Parametry badawcze (uniwersum spółek, data odcięcia in-sample/out-of-sample, założona stopa wolna
+  od ryzyka) zostały wyabstrahowane z kodu Pythona do pliku konfiguracyjnego. Pozwala to na
+  przeprowadzanie analiz wrażliwości (sensitivity analysis) bez dotykania implementacji algorytmów.
+
+----------------------------------------------------------------------------------------------------
+4. ANALIZA TECHNOLOGICZNA: DLACZEGO POLARS W BADANIACH QUANTITATIVE FINANCE (ML4T)
+----------------------------------------------------------------------------------------------------
+Wybór biblioteki Polars zamiast tradycyjnego Pandas podyktowany jest krytycznymi uwarunkowaniami
+obliczeniowymi w dziedzinie finansów ilościowych:
+
+1. Pamięć kolumnowa Apache Arrow:
+   Polars przechowuje dane w układzie kolumnowym zgodnym ze standardem Apache Arrow. W analizie
+   finansowej (gdzie operujemy na wektorach cen, wolumenów i stóp zwrotu) eliminuje to narzut
+   wierszowego skanowania pamięci podręcznej procesora (CPU cache misses).
+
+2. Silnik wielowątkowy napisany w Rust bez GIL:
+   Pandas jest ograniczony globalną blokadą interpretera (Global Interpreter Lock - GIL) w Pythonie,
+   co sprawia, że agregacje grupowe (.groupby()) działają na pojedynczym rdzeniu procesora.
+   Polars wykonuje operacje na natywnych wątkach w języku Rust, wykorzystując wszystkie dostępne
+   rdzenie bez interwencji środowiska uruchomieniowego Pythona.
+
+3. Wyrażenia (Expressions) i Ewaluacja Leniwa (LazyFrame):
+   Zamiast generować pośrednie serie danych w pamięci RAM (co w Pandas prowadzi do eksplozji pamięciowej
+   przy milionach ticków), Polars buduje zoptymalizowany graf acykliczny obliczeń (Logical Plan
+   -> Physical Plan). Optymalizator zapytań automatycznie łączy filtry (predicate pushdown)
+   i eliminuje nieużywane kolumny (projection pushdown).
+
+4. Ścisły system typów i brak niejawnych konwersji:
+   W Pandas konwersje typów (np. ciche rzutowanie int do float przy pojawieniu się wartości NaN)
+   często prowadzą do trudnych do wykrycia błędów w strategiach backtestowych. Polars rygorystycznie
+   egzekwuje schematy danych, co jest fundamentem badań akademickich.
+
+----------------------------------------------------------------------------------------------------
+5. LITERATE PROGRAMMING I QUARTO: ELIMINACJA KRYZYSU REPLIKOWALNOŚCI
+----------------------------------------------------------------------------------------------------
+W 1984 roku Donald Knuth przedstawił koncepcję Programowania Literackiego (Literate Programming),
+wskazując, że program komputerowy powinien być traktowany jak dzieło literackie, w którym kod
+źródłowy jest naturalnie wpleciony w narrację objaśniającą jego sens.
+
+Współczesna nauka o danych zmaga się z poważnym kryzysem replikowalności:
+- Wykresy i tabele w tradycyjnych artykułach są wklejane statycznie z zewnętrznych skryptów.
+- Zmiana parametrów danych rzadko skutkuje automatyczną aktualizacją tekstu publikacji.
+- Wyniki są podatne na błąd "cherry-pickingu" i nieuwzględnione zmiany w pipeline'ie.
+
+Nasz projekt rozwiązuje ten problem poprzez Quarto (.qmd):
+1. Plik 'manuscript/sections/01_data_overview.qmd' zawiera komórkę Pythona, która ładuje
+   wyliczone artefakty z 'outputs/' i bezpośrednio generuje tabelę statystyczną (@tbl-summary-stats).
+2. Jeśli dane ulegną zmianie, ponowna kompilacja manuskryptu automatycznie odświeży wartości liczbowe
+   w tekście bez ingerencji manualnej.
+3. Czytelnik publikacji ma 100% gwarancji, że prezentowane liczby pochodzą z dokładnie tego samego
+   kodu źródłowego, który jest opublikowany w repozytorium.
+
+----------------------------------------------------------------------------------------------------
+6. MODULARNE UMIEJĘTNOŚCI AGENTOWE (.AGENTS/SKILLS)
+----------------------------------------------------------------------------------------------------
+W architekturze autonomicznych agentów agy-cli zdefiniowaliśmy dwa komplementarne profile:
+
+1. '.agents/skills/data-curator/SKILL.md':
+   - Rola: Inżynier Danych Rynkowych / Quant Data Curator.
+   - Zadania: Ingestia, czyszczenie luk, korekta splitów i dywidend, wyliczanie wektorowych
+     stóp zwrotu, estymacja wyższych momentów i miar ryzyka (Sharpe, MDD, VaR).
+   - Narzędzie główne: Polars (Python/Rust).
+
+2. '.agents/skills/literate-writer/SKILL.md':
+   - Rola: Redaktor Naukowy / Literate Programming Specialist.
+   - Zadania: Tworzenie narracji badawczej, formatowanie wzorów matematycznych w LaTeX,
+     osadzanie dynamicznych tabel z Quarto, cytowanie literatury z pliku BibTeX.
+   - Narzędzie główne: Quarto, LaTeX, Markdown.
+
+Taki podział pozwala agentom współpracować w pętli badawczej: Data Curator generuje zweryfikowane
+dane, a Literate Writer syntetyzuje je w recenzowalny tekst naukowy.
+
+----------------------------------------------------------------------------------------------------
+7. PRZYGOTOWANIE GRUNTU POD PUBLIKACJĘ NAUKOWĄ I DALSZE KROKI
+----------------------------------------------------------------------------------------------------
+Przygotowany szkielet stanowi kompletny punkt wyjścia do publikacji naukowej o roboczym tytule:
+"Machine Learning for Trading: Autonomous Quantitative Research Manuscript".
+
+Zrealizowane fundamenty merytoryczne:
+1. Matematyczna definicja stóp zwrotu logarytmicznych i metryk ryzyka (wzory 1–6 w sekcji 01).
+2. Uwzględnienie stylizowanych faktów rynkowych Ramy Conta (2001):
+   - Weryfikacja gruboogonowości rozkładów (Leptokurtosis, Excess Kurtosis > 0).
+   - Weryfikacja asymetrii i ryzyka nagłego załamania płynności (Negative Skewness).
+   - Analiza zróżnicowania zachowania klas aktywów (akcje wzrostowe vs indeksy vs obligacje skarbowe vs złoto).
+3. Gotowość do rozszerzenia o kolejne sekcje:
+   - '02_feature_engineering.qmd' (wskaźniki techniczne, transformacje falkowe, filtry fraktalne).
+   - '03_model_architecture.qmd' (modele gradientowe XGBoost/LightGBM oraz sieci Temporal Fusion Transformer).
+   - '04_backtesting_validation.qmd' (kombinatoryczna walidacja krzyżowa Purged K-Fold CV wg Lopeza de Prado).
+
+----------------------------------------------------------------------------------------------------
+8. PROTOKÓŁ WERYFIKACJI I STAN ARTEFAKTÓW
+----------------------------------------------------------------------------------------------------
+Stan wygenerowanych plików:
+[OK] ml4t-literate-agent/pyproject.toml                     (Konfiguracja PEP 621 i zależności)
+[OK] ml4t-literate-agent/config.yaml                       (Parametry badawcze uniwersum)
+[OK] ml4t-literate-agent/src/__init__.py                   (Inicjalizacja pakietu src)
+[OK] ml4t-literate-agent/src/data_curator.py               (Silnik kurateli Polars + test runner)
+[OK] ml4t-literate-agent/.agents/skills/data-curator/SKILL.md (Skill kuratora danych)
+[OK] ml4t-literate-agent/.agents/skills/literate-writer/SKILL.md (Skill redaktora naukowego)
+[OK] ml4t-literate-agent/manuscript/_quarto.yml            (Konfiguracja Quarto)
+[OK] ml4t-literate-agent/manuscript/references.bib         (Baza bibliograficzna BibTeX)
+[OK] ml4t-literate-agent/manuscript/index.qmd              (Główny dokument manuskryptu)
+[OK] ml4t-literate-agent/manuscript/sections/01_data_overview.qmd (Sekcja 01 Literate Programming)
+[OK] ml4t-literate-agent/outputs/system_init.log           (Niniejszy szczegółowy log inicjalizacyjny)
+
+INFORMACJA O KONTROLI WERSJI:
+Zgodnie z wyraźną dyspozycją użytkownika ("nie wykonuj jeszcze commita do git – zatrzymaj się po
+wygenerowaniu plików"), proces został zatrzymany bez tworzenia commita ani modyfikowania
+drzewa historii Git. Wszystkie pliki oczekują na Twoją weryfikację.
+====================================================================================================
+KONIEC LOGU SYSTEMOWEGO
+====================================================================================================

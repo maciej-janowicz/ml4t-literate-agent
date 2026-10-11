@@ -1,0 +1,61 @@
+# Configuration file for ML4T Literate Agent
+# Quantitative Research and Empirical Market Data Pipeline
+
+project:
+  name: "ml4t-literate-agent"
+  version: "0.1.0"
+  description: "Autonomous Literate Programming Architecture for Quantitative Trading Research"
+  timezone: "America/New_York"
+
+universe:
+  benchmark: "SPY"
+  symbols:
+    - symbol: "SPY"
+      name: "SPDR S&P 500 ETF Trust"
+      asset_class: "Broad Equity ETF"
+    - symbol: "QQQ"
+      name: "Invesco QQQ Trust (Nasdaq 100)"
+      asset_class: "Tech Equity ETF"
+    - symbol: "IWM"
+      name: "iShares Russell 2000 ETF"
+      asset_class: "Small Cap Equity ETF"
+    - symbol: "AAPL"
+      name: "Apple Inc."
+      asset_class: "MegaCap Technology"
+    - symbol: "MSFT"
+      name: "Microsoft Corporation"
+      asset_class: "MegaCap Technology"
+    - symbol: "NVDA"
+      name: "NVIDIA Corporation"
+      asset_class: "Semiconductors / AI"
+    - symbol: "TLT"
+      name: "iShares 20+ Year Treasury Bond ETF"
+      asset_class: "Long-Term US Treasuries"
+    - symbol: "GLD"
+      name: "SPDR Gold Shares"
+      asset_class: "Commodities / Precious Metals"
+
+data:
+  start_date: "2020-01-01"
+  end_date: "2024-12-31"
+  source: "yahoo"
+  price_field: "adj_close"
+  cache_dir: "outputs/cache"
+  raw_parquet: "outputs/raw_market_data.parquet"
+  curated_parquet: "outputs/curated_market_data.parquet"
+  stats_csv: "outputs/summary_stats.csv"
+  stats_parquet: "outputs/summary_stats.parquet"
+  stats_markdown: "outputs/summary_stats.md"
+
+analytics:
+  trading_days_per_year: 252
+  risk_free_rate: 0.0425
+  var_confidence_level: 0.95
+  max_missing_threshold: 0.02
+  winsorize_outliers: false
+
+literate_publishing:
+  manuscript_dir: "manuscript"
+  sections_dir: "manuscript/sections"
+  table_precision: 4
+  quarto_engine: "jupyter"

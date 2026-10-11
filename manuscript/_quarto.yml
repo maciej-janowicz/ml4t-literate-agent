@@ -1,0 +1,23 @@
+project:
+  type: manuscript
+  output-dir: ../outputs/manuscript_build
+
+manuscript:
+  article: index.qmd
+
+bibliography: references.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    code-fold: show
+    code-tools: true
+    df-print: kable
+  pdf:
+    documentclass: article
+    geometry: margin=1in
+    cite-method: natbib
+    keep-tex: true

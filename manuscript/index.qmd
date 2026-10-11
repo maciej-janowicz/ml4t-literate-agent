@@ -1,0 +1,15 @@
+---
+title: "Machine Learning for Trading: Autonomous Quantitative Research Manuscript"
+subtitle: "A Literate Programming Architecture for Reproducible Alpha Discovery"
+author:
+  - name: "Quantitative Research Agent"
+    affiliation: "ML4T Autonomous Lab"
+date: "2026-10-11"
+abstract: >
+  This manuscript establishes an end-to-end reproducible research paradigm for quantitative trading
+  and machine learning (ML4T), combining high-performance columnar data curation via Polars with
+  the literate programming methodology. We examine empirical stylized facts across broad equity,
+  fixed income, commodity, and mega-cap technology assets.
+---
+
+{{< include sections/01_data_overview.qmd >}}
