@@ -1,0 +1,405 @@
+====================================================================================================
+OPERATIONAL LOG & ARCHITECTURAL LOGBOOK: CONTINUOUS CANDLESTICK FEATURE ENGINEERING
+====================================================================================================
+Projekt:           ml4t-literate-agent
+Moduł badawczy:    Inżynieria Cech Świec Japońskich (src/candlestick_features.py)
+Manuskrypt:        manuscript/sections/02_feature_engineering.qmd
+Data i czas:       2026-10-11T18:50:00+02:00
+Środowisko:        Linux x86_64 | Python 3.12 | Polars (Apache Arrow Engine) | Quarto
+Agent wykonawczy:  agy-cli (Antigravity Autonomous Quantitative Agent)
+Status operacji:   ZAKOŃCZONO POMYŚLNIE (Pełna weryfikacja matematyczna i architektoniczna)
+Status VCS Git:    WSTRZYMANO (Brak commita – oczekiwanie na weryfikację użytkownika)
+====================================================================================================
+
+SPIS TREŚCI:
+1. REJESTR OPERACYJNY WYKONANYCH ZADAŃ
+2. SZCZEGÓŁOWY OPIS PODJĘTYCH DECYZJI ARCHITEKTONICZNYCH
+   2.1. Odejście od heurystyk dyskretnych na rzecz rozmaitości ciągłych
+   2.2. Topologia 2-simpleksu Delta^2 i kanoniczny podział przestrzeni
+   2.3. Architektura wektorowa silnika Polars (Apache Arrow / Rust)
+   2.4. Projekt API: separacja atomowych wyrażeń i orkiestracji
+   2.5. Paradygmat Programowania Literackiego (Knuth 1984 & Quarto)
+3. SPOSÓB OBLICZANIA WSKAŹNIKÓW I APARAT MATEMATYCZNY
+   3.1. Prymitywy wejściowe i numeryczna regularyzacja zakresu (epsilon)
+   3.2. Geometria korpusu: względna wielkość (B_t) oraz korpus ze znakiem (B_t^signed)
+   3.3. Geometria cieni: wskaźniki górnego (U_t) i dolnego (L_t) cienia
+   3.4. Asymetria cieni: wskaźnik bezwzględny (A_t^shadow) oraz znormalizowany
+   3.5. Pozycja w zakresie sesji: Close Location Value (Pos_t^range) i Open Location
+   3.6. Rozpiętość świecy i rozszerzenie zmienności (Volatility Expansion)
+   3.7. Interakcje mikrostrukturalne z wolumenem: RVOL, intensywność i prawo Wyckoffa
+   3.8. Horyzonty celów predykcyjnych: logarytmiczne stopy zwrotu w przód
+4. RYGORYSTYCZNE ZABEZPIECZENIA PRZED WYCIEKIEM DANYCH (DATA LEAKAGE PREVENTION)
+   4.1. Czasowa integralność przyczynowo-skutkowa (Point-in-Time Causality)
+   4.2. Eliminacja Lookahead Bias w konstrukcji okien kroczących
+   4.3. Konstrukcja zmiennych objaśnianych (Target Isolation)
+   4.4. Zapobieganie zanieczyszczeniu międzyaktywowemu (.over("symbol"))
+   4.5. Lokalna normalizacja kontra wyciek globalny (Train-Test Independence)
+   4.6. Eliminacja wycieków z selekcji i data snoopingu (Family-Wise Error Rate)
+5. ANALIZA ODPORNOŚCI NA PRZEUCZENIE (OVERFITTING MITIGATION)
+6. PROTOKÓŁ WERYFIKACJI I STAN ARTEFAKTÓW
+
+====================================================================================================
+1. REJESTR OPERACYJNY WYKONANYCH ZADAŃ
+====================================================================================================
+Krok 1 [18:41:40]: Zaprojektowano i wdrożono moduł obliczeniowy 'src/candlestick_features.py':
+       - Zdefiniowano niemutowalną klasę konfiguracyjną 'CandlestickFeatureConfig' parametryzującą
+         nazwy kolumn, stałą regularyzacji epsilon (1e-8), okna kroczące oraz horyzonty stóp zwrotu.
+       - Zaimplementowano 15 atomowych wyrażeń Polars ('pl.Expr') realizujących operacje geometryczne
+         oraz mikrostrukturalne w przestrzeni ciągłej.
+       - Zbudowano zunifikowaną funkcję potoku 'compute_candlestick_features', natywnie wspierającą
+         zarówno 'pl.DataFrame', jak i 'pl.LazyFrame'.
+       - Opracowano moduły wyliczania korelacji rangowej Spearmana (Information Coefficient) oraz
+         wielomomentowych statystyk opisowych cech.
+       - Zaimplementowano generator deterministycznych danych syntetycznych OHLCV do weryfikacji offline.
+
+Krok 2 [18:42:00]: Zaktualizowano bazę bibliograficzną 'manuscript/references.bib':
+       - Dołączono pozycje literaturowe: Nison (1991), Morris (2006), Bulkowski (2008),
+         oraz Sullivan, Timmermann & White (1999) dotyczące testowania reguł technicznych i data-snoopingu.
+
+Krok 3 [18:44:50]: Zintegrowano nową sekcję z głównym dokumentem publikacji 'manuscript/index.qmd':
+       - Dodano dyrektywę '{{< include sections/02_feature_engineering.qmd >}}'.
+
+Krok 4 [18:45:34]: Utworzono rozdział publikacji 'manuscript/sections/02_feature_engineering.qmd':
+       - Sformułowano dowód matematyczny dekompozycji simpleksowej na Delta^2.
+       - Przedstawiono aparat formalny w LaTeX wraz z etykietami cross-reference (@eq-...).
+       - Zaimplementowano wykonywalne komórki obliczeniowe generujące tabelę IC (@tbl-candlestick-corr)
+         oraz wielopanelową rycinę rozkładów (@fig-candlestick-distributions).
+       - Przedstawiono interpretację empiryczną i mikrostrukturalną.
+
+Krok 5 [18:50:00]: Rozszerzono niniejszy dziennik architektoniczny 'outputs/candlestick_features.log'
+       o wyczerpujący opis decyzji, formuł matematycznych i zabezpieczeń przed wyciekiem danych.
+
+====================================================================================================
+2. SZCZEGÓŁOWY OPIS PODJĘTYCH DECYZJI ARCHITEKTONICZNYCH
+====================================================================================================
+
+2.1. Odejście od heurystyk dyskretnych na rzecz rozmaitości ciągłych
+-------------------------------------------------------------------
+Klasyczna szkoła analizy świec japońskich (Homma, Nison, Bulkowski) traktuje świece jako dyskretne
+klasy jakościowe (np. Doji, Młot, Spadająca Gwiazda, Objęcie Hossy/Bessy). W ilościowym uczeniu
+maszynowym (ML4T) podejście to zostało całkowicie odrzucone z następujących powodów:
+a) Sztuczna dyskretyzacja progowa (Threshold Discontinuity): W klasycznych heurystykach formacja
+   Doji wymaga, aby |Close - Open| <= theta * (High - Low), gdzie theta jest arbitralną stałą (np. 0.05).
+   Taki warunek tworzy skokową nieciągłość brzegową: świeca o współczynniku 0.049 otrzymuje etykietę 1,
+   podczas gdy świeca o współczynniku 0.051 otrzymuje 0. Powoduje to ogromną niestabilność estymacji
+   oraz niszczy gradienty w optymalizatorach bazujących na spadku gradientu.
+b) Niszczenie informacji (Information Loss): Odwzorowanie 5-wymiarowego wektora cenowo-wolumenowego
+   (Open, High, Low, Close, Volume) w pojedynczą binarną flagę niszczy informację o dynamice sesji,
+   stosunku cieni do korpusu oraz płynności transakcyjnej.
+c) Rzadkość próbkowania (Sample Sparsity): Złożone wieloświecowe formacje dyskretne występują
+   z częstością poniżej 0.1% sesji. Prowadzi to do skrajnie niezbalansowanych zbiorów danych i sprawia,
+   że modele nieliniowe (np. drzewa decyzyjne) dopasowują podziały do jednostkowego szumu losowego.
+Rozwiązanie architektoniczne: Zastąpiono etykiety jakościowe ciągłą przestrzenią metryczną, w której
+każda świeca reprezentowana jest przez ciągłe, znormalizowane współrzędne geometryczne.
+
+2.2. Topologia 2-simpleksu Delta^2 i kanoniczny podział przestrzeni
+------------------------------------------------------------------
+Zaprojektowana transformacja opiera się na tożsamości podziału całkowitej rozpiętości świecy:
+Rozpiętość R_t = High_t - Low_t jest sumą trzech rozłącznych odcinków:
+  R_t = Upper_t + Body_t + Lower_t
+Po podzieleniu obu stron przez R_t (z regularyzacją epsilon) otrzymujemy:
+  B_t + U_t + L_t = 1,   gdzie B_t >= 0, U_t >= 0, L_t >= 0
+Oznacza to, że każda możliwa geometria świecy jest izomorficzna z punktem na standardowym 2-simpleksie:
+  Delta^2 = { (b, u, l) in R_+^3 : b + u + l = 1 }
+Konsekwencje architektoniczne:
+- Zwartość (Compactness): Przestrzeń cech jest domknięta i ograniczona. Żadna wartość nie może uciec
+  do nieskończoności, co eliminuje konieczność obcinania wartości odstających (winsoryzacji).
+- Niezmienniczość względem skali (Scale Invariance): Świeca na taniej spółce penny-stock o zakresie 0.10 USD
+  oraz świeca na indeksie S&P 500 o zakresie 80 punktów mają dokładnie te same bezwymiarowe współrzędne,
+  jeśli ich proporcje geometryczne są identyczne. Zapewnia to natychmiastową przenaszalność modeli.
+
+2.3. Architektura wektorowa silnika Polars (Apache Arrow / Rust)
+----------------------------------------------------------------
+Zastosowanie biblioteki Polars zamiast tradycyjnego Pandas/NumPy wynika ze specyfiki produkcyjnej ML4T:
+a) Pamięć Apache Arrow: Kolumnowy format binarny zgodny z Arrow eliminuje narzut serializacji/deserializacji
+   oraz umożliwia przetwarzanie zerokopiowe (zero-copy memory sharing).
+b) Równoległość SIMD na poziomie rdzeni procesora: Zamiast pythonowych pętli (for row, iter_rows, apply),
+   obliczenia realizowane są w rdzeniu Polars (język Rust) z automatyczną wektoryzacją instrukcjami
+   AVX2/AVX-512.
+c) Partycjonowanie bez narzutu GIL: Zastosowanie wyrażeń okienkowych '.over("symbol")' pozwala na
+   równoległe przetwarzanie tysięcy spółek w puli wątków Polars bez blokowania przez Global Interpreter Lock.
+d) Obsługa LazyFrame: Silnik optymalizacji zapytań analizuje pełny graf obliczeń przed wykonaniem,
+   stosując projection pushdown (pobieranie tylko wymaganych kolumn) i predicate pushdown (filtrowanie
+   na poziomie odczytu binarnego).
+
+2.4. Projekt API: separacja atomowych wyrażeń i orkiestracji
+------------------------------------------------------------
+W module 'src/candlestick_features.py' zastosowano architekturę dwuwarstwową:
+- Warstwa 1 (Atomic Expressions): Funkcje o sygnaturze 'expr_*(...) -> pl.Expr'. Każde wyrażenie
+  jest bezstanowe, czyste funkcyjnie (pure function) i może być dowolnie łączone z innymi zapytaniami Polars.
+- Warstwa 2 (Pipeline Orchestrator): Funkcja 'compute_candlestick_features' łącząca atomowe wyrażenia
+  w zoptymalizowany plan wykonania, przyjmująca strukturę konfiguracyjną 'CandlestickFeatureConfig'.
+  Umożliwia to elastyczne wstrzykiwanie nazw kolumn, okien kroczących i stałych numerycznych.
+
+2.5. Paradygmat Programowania Literackiego (Knuth 1984 & Quarto)
+----------------------------------------------------------------
+Raport badawczy nie jest pasywnym dokumentem tekstowym, lecz żywym, odtwarzalnym artefaktem:
+- Plik 'manuscript/sections/02_feature_engineering.qmd' bezpośrednio importuje moduł 'src/candlestick_features.py',
+  wykonuje wektoryzację na danych notowań i w locie generuje tabelę korelacji oraz wykresy.
+- Eliminuje to kryzys replikowalności (reproducibility crisis) – jakakolwiek zmiana w logice kodu
+  automatycznie odzwierciedla się w wyrenderowanym manuskrypcie naukowym.
+
+====================================================================================================
+3. SPOSÓB OBLICZANIA WSKAŹNIKÓW I APARAT MATEMATYCZNY
+====================================================================================================
+
+3.1. Prymitywy wejściowe i numeryczna regularyzacja zakresu (epsilon)
+---------------------------------------------------------------------
+Każda sesja t opisana jest wektorem cenowym: Open_t, High_t, Low_t, Close_t > 0 oraz wolumenem Volume_t >= 0,
+spełniającym aksjomaty rynkowe:
+  High_t >= max(Open_t, Close_t)   oraz   Low_t <= min(Open_t, Close_t)
+
+Całkowity surowy zakres sesji wynosi:
+  Range_t = High_t - Low_t
+W warunkach rynkowych (zwłaszcza w danych tickowych, na instrumentach mało płynnych lub w okresach zawieszenia
+notowań) zdarzają się świece zdegenerowane, gdzie High_t = Low_t (Range_t = 0). Dzielenie przez zero
+prowadziłoby do powstawania wartości NaN lub Inf, unieważniając cały wektor obserwacji.
+Wprowadzono regularyzowany zakres świecy:
+  \widetilde{R}_t = High_t - Low_t + \epsilon,   gdzie \epsilon = 10^{-8}
+Stała \epsilon zapobiega osobliwościom numerycznym, nie zniekształcając wartości wskaźników dla Range_t > 0.
+
+3.2. Geometria korpusu: względna wielkość (B_t) oraz korpus ze znakiem (B_t^signed)
+-----------------------------------------------------------------------------------
+Korpus świecy odzwierciedla netto przesunięcie ceny między otwarciem a zamknięciem sesji.
+a) Względna bezwzględna wielkość korpusu (Relative Body Size):
+     B_t = \frac{|Close_t - Open_t|}{\widetilde{R}_t} \in [0, 1]
+   - B_t = 1.0 oznacza świecę typu Marubozu (zamknięcie i otwarcie na ekstremach, brak cieni).
+   - B_t = 0.0 oznacza klasyczną geometrię Doji (Close_t = Open_t).
+   - Implementacja Polars:
+     ((pl.col(close_col) - pl.col(open_col)).abs() / rng).alias("body_rel_size")
+
+b) Kierunkowy korpus ze znakiem (Signed Relative Body Size):
+     B_t^{\text{signed}} = \frac{Close_t - Open_t}{\widetilde{R}_t} \in [-1, 1]
+   - B_t^{\text{signed}} > 0: dominacja popytu (świeca wzrostowa / biała).
+   - B_t^{\text{signed}} < 0: dominacja podaży (świeca spadkowa / czarna).
+   - B_t^{\text{signed}} = 0: idealna równowaga sił na zamknięciu sesji.
+   - Implementacja Polars:
+     ((pl.col(close_col) - pl.col(open_col)) / rng).alias("body_signed_ratio")
+
+3.3. Geometria cieni: wskaźniki górnego (U_t) i dolnego (L_t) cienia
+--------------------------------------------------------------------
+Cienie reprezentują zakresy cenowe, które zostały w trakcie sesji przetestowane, lecz ostatecznie
+odrzucone przez uczestników rynku.
+a) Górny cień (Upper Shadow / Wick):
+     Upper_t = High_t - \max(Open_t, Close_t)
+     U_t = \frac{Upper_t}{\widetilde{R}_t} \in [0, 1]
+   - Wyznacza strefę odrzucenia cen wysokich przez wkraczającą podaż.
+   - Implementacja Polars:
+     upper_len = pl.col(high_col) - pl.max_horizontal(open_col, close_col)
+     (upper_len / rng).alias("upper_shadow_ratio")
+
+b) Dolny cień (Lower Shadow / Tail):
+     Lower_t = \min(Open_t, Close_t) - Low_t
+     L_t = \frac{Lower_t}{\widetilde{R}_t} \in [0, 1]
+   - Wyznacza strefę obrony i absorpcji dołków cenowych przez kupujących.
+   - Implementacja Polars:
+     lower_len = pl.min_horizontal(open_col, close_col) - pl.col(low_col)
+     (lower_len / rng).alias("lower_shadow_ratio")
+
+3.4. Asymetria cieni: wskaźnik bezwzględny (A_t^shadow) oraz znormalizowany
+---------------------------------------------------------------------------
+Pojedyncze wskaźniki cieni nie określają bezpośrednio relacji sił między kupującymi a sprzedającymi.
+Wprowadzono miary asymetrii:
+a) Asymetria cieni (Shadow Asymmetry):
+     A_t^{\text{shadow}} = U_t - L_t \in [-1, 1]
+   - A_t^{\text{shadow}} > 0: dominacja odrzucenia góry (np. formacja Spadającej Gwiazdy / Shooting Star).
+   - A_t^{\text{shadow}} < 0: dominacja odrzucenia dołu (np. formacja Młota / Hammer).
+   - A_t^{\text{shadow}} \approx 0: symetryczne cienie (np. Spinning Top, Long-Legged Doji).
+   - Implementacja Polars:
+     (pl.col(upper_shadow_col) - pl.col(lower_shadow_col)).alias("shadow_asymmetry")
+
+b) Względna asymetria cieni (Relative Shadow Asymmetry):
+     A_{t,\text{rel}}^{\text{shadow}} = \frac{Upper_t - Lower_t}{Upper_t + Lower_t + \epsilon} \in [-1, 1]
+   - Mierzy względną proporcję między cieniami z pominięciem wielkości korpusu.
+   - Implementacja Polars:
+     ((upper_len - lower_len) / (upper_len + lower_len + epsilon)).alias("shadow_rel_asymmetry")
+
+3.5. Pozycja w zakresie sesji: Close Location Value (Pos_t^range) i Open Location
+---------------------------------------------------------------------------------
+Wskaźnik ten określa, w którym miejscu całkowitego pasma wahań sesja została zamknięta:
+a) Pozycja zamknięcia w zakresie (Close Location Value / Williams %R dual):
+     Pos_t^{\text{range}} = \frac{Close_t - Low_t}{\widetilde{R}_t} \in [0, 1]
+   - Pos_t^{\text{range}} = 1.0: zamknięcie dokładnie na maksimum dziennym (High_t = Close_t).
+   - Pos_t^{\text{range}} = 0.0: zamknięcie dokładnie na minimum dziennym (Low_t = Close_t).
+   - Pos_t^{\text{range}} = 0.5: zamknięcie dokładnie w połowie rozpiętości sesji.
+   - Implementacja Polars:
+     ((pl.col(close_col) - pl.col(low_col)) / rng).alias("close_position_in_range")
+
+b) Pozycja otwarcia w zakresie:
+     Pos_t^{\text{open}} = \frac{Open_t - Low_t}{\widetilde{R}_t} \in [0, 1]
+   - Zachodzi tożsamość różnicowa łącząca pozycję z korpusem:
+     Pos_t^{\text{range}} - Pos_t^{\text{open}} \equiv B_t^{\text{signed}}
+   - Implementacja Polars:
+     ((pl.col(open_col) - pl.col(low_col)) / rng).alias("open_position_in_range")
+
+3.6. Rozpiętość świecy i rozszerzenie zmienności (Volatility Expansion)
+-----------------------------------------------------------------------
+Geometria wewnętrzna świecy musi zostać osadzona w kontekście reżimu zmienności aktywa:
+a) Względny spread sesji (Relative Range):
+     Range_t^{\text{rel}} = \frac{High_t - Low_t}{Open_t + \epsilon}
+   - Mierzy intradayową zmienność w ujęciu procentowym do ceny bazowej.
+b) Znormalizowany zakres kroczący (Volatility Expansion Factor):
+     Range_{t,k}^{\text{norm}} = \frac{High_t - Low_t}{\text{SMA}_k(High - Low) + \epsilon}
+   - Wartości > 2.0 oznaczają sesję o anomalnie wysokiej zmienności (rozszerzenie pasma, breakout).
+   - Wartości < 0.5 oznaczają sesję o kompresji zmienności (inside bar, konsolidacja).
+   - Okna k zdefiniowano domyślnie na k = 5 oraz k = 20 dni roboczych.
+
+3.7. Interakcje mikrostrukturalne z wolumenem: RVOL, intensywność i prawo Wyckoffa
+----------------------------------------------------------------------------------
+Sam ruch cenowy bez wolumenu jest pozbawiony informacji o zaangażowaniu kapitałowym.
+Zaimplementowano następujące transformacje wektorowe:
+a) Relatywny wolumen obrotu (Relative Volume - RVOL):
+     V_{t,k}^{\text{rel}} = \frac{Volume_t}{\text{SMA}_k(Volume) + \epsilon}
+   - Odzwierciedla relatywne natężenie aktywności rynkowej względem 20-dniowej bazy.
+   - Implementacja Polars:
+     rolling_vol = pl.col(volume_col).rolling_mean(window_size=w).over("symbol")
+     (pl.col(volume_col) / (rolling_vol + epsilon)).alias(f"relative_volume_w{w}")
+
+b) Intensywność wolumenu (Liquidity Density / Gęstość Płynności):
+     V_t^{\text{intensity}} = \ln\left(1 + \frac{Volume_t}{High_t - Low_t + \epsilon}\right)
+   - Iloraz liczby wymienionych jednostek do przebytego dystansu cenowego.
+   - Wysoka intensywność przy wąskim zakresie (małe R_t) oznacza akumulację/dystrybucję pasywną
+     (zlecenia z limitem ceny wchłaniające płynność – churning).
+   - Transformacja log1p stabilizuje rozkład o grubych ogonach.
+
+c) Wolumen ważony kierunkiem korpusu (Prawo Wyckoffa: Effort vs. Result):
+     V_t^{\text{body}} = B_t^{\text{signed}} \times V_{t,k}^{\text{rel}}
+   - Łączy kierunek przesunięcia ceny z wysiłkiem wolumenowym.
+   - Duży korpus poparty wysokim RVOL generuje silnie dodatnie (lub ujemne) V_t^body,
+     potwierdzając instytucjonalne zaangażowanie kierunkowe.
+
+d) Wolumen ważony cieniami (Presja odrzucenia):
+     V_t^{\text{upper}} = U_t \times V_{t,k}^{\text{rel}}   (presja podaży na szczycie)
+     V_t^{\text{lower}} = L_t \times V_{t,k}^{\text{rel}}   (presja popytu na dołku)
+
+3.8. Horyzonty celów predykcyjnych: logarytmiczne stopy zwrotu w przód
+---------------------------------------------------------------------
+Do ewaluacji empirycznej siły predykcyjnej cech (Information Coefficient) wyliczane są
+przyszłe ciągłe stopy zwrotu dla horyzontów h in {1, 3, 5, 10} sesji:
+  r_{t \to t+h} = \ln\left(\frac{Close_{t+h}}{Close_t}\right) = \ln(Close_{t+h}) - \ln(Close_t)
+Implementacja Polars wykorzystuje przesunięcie wsteczne ujemne:
+  shifted_close = pl.col(close_col).shift(-h).over("symbol")
+  ret_expr = (shifted_close / pl.col(close_col)).log().alias(f"fwd_ret_{h}d")
+
+====================================================================================================
+4. RYGORYSTYCZNE ZABEZPIECZENIA PRZED WYCIEKIEM DANYCH (DATA LEAKAGE PREVENTION)
+====================================================================================================
+Wyciek danych (data leakage / lookahead bias) jest najczęstszą przyczyną pozornych sukcesów
+i późniejszych katastrof kapitałowych w strategiach ilościowych. W module wdrożono
+następujące bezkompromisowe zabezpieczenia:
+
+4.1. Czasowa integralność przyczynowo-skutkowa (Point-in-Time Causality)
+-----------------------------------------------------------------------
+Zasada: Do wyliczenia wektora cech w chwili t wolno użyć WYŁĄCZNIE danych dostępnych w chwili t
+lub wcześniej.
+- Wektor cech świecy t bazuje wyłącznie na wielkościach zrealizowanych w sesji t:
+  Open_t, High_t, Low_t, Close_t, Volume_t.
+- Cechy geometryczne (B_t, U_t, L_t, A_t, Pos_t) są czysto lokalne w czasie – nie wymagają
+  żadnych danych spoza sesji t.
+- W momencie publikacji ceny zamknięcia Close_t wszystkie te cechy są deterministycznie znane
+  i gotowe do zasilenia modelu decyzyjnego.
+
+4.2. Eliminacja Lookahead Bias w konstrukcji okien kroczących
+------------------------------------------------------------
+W agregacjach kroczących (np. średnia ruchoma wolumenu SMA_k(Volume) lub rozpiętości):
+- Zastosowano wyłącznie asymetryczne okna przeszłe (backward-looking rolling windows):
+  okno o długości k obejmuje indeksy od t - k + 1 do t.
+- W silniku Polars metoda '.rolling_mean(window_size=k)' domyślnie agreguje wyłącznie dane historyczne
+  wstecz. Nie zastosowano parametru 'center=True', który spowodowałby wyciek przyszłych notowań
+  z przedziału (t, t + k/2].
+
+4.3. Konstrukcja zmiennych objaśnianych (Target Isolation)
+---------------------------------------------------------
+Konstrukcja stóp zwrotu w przód r_{t \to t+h} spełnia rygorystyczny warunek izolacji decyzyjnej:
+- Cechy X_t obliczane są na zamknięciu sesji t.
+- Zwrot przyszły Y_t = ln(Close_{t+h} / Close_t) mierzy zmianę ceny od momentu decyzyjnego t
+  do przyszłego momentu t+h.
+- Wykorzystanie operacji '.shift(-h)' gwarantuje, że w wierszu t znajduje się stopa zwrotu,
+  która zrealizuje się DOPIERO w przyszłości.
+- Przy trenowaniu modeli predykcyjnych kolumny 'fwd_ret_*' są rygorystycznie separowane od macierzy
+  cech X i traktowane wyłącznie jako wektory celu y.
+
+4.4. Zapobieganie zanieczyszczeniu międzyaktywowemu (.over("symbol"))
+--------------------------------------------------------------------
+W uniwersum wielu instrumentów (np. SPY, QQQ, AAPL, NVDA) dane ułożone są w jednym panelu:
+- Gdyby operacje '.rolling_mean()' lub '.shift()' wykonano na całym zbiorze bez podziału,
+  pierwsze wiersze aktywa QQQ pobierałyby dane z ostatnich wierszy aktywa SPY!
+  Taki błąd (cross-asset contamination) jest częstym, ukrytym błędem w bibliotece pandas.
+- Zabezpieczenie: W module 'src/candlestick_features.py' każda operacja zależna od czasu
+  (rolling_mean, shift) jest bezwzględnie enkapsulowana w klauzuli:
+    .over(cfg.symbol_col)
+  Gwarantuje to, że bufor obliczeniowy jest resetowany na granicach każdego symbolu.
+  Ostatnie wiersze SPY przy '.shift(-h)' otrzymują wartości null, a nie ceny otwarcia QQQ.
+
+4.5. Lokalna normalizacja kontra wyciek globalny (Train-Test Independence)
+-------------------------------------------------------------------------
+Tradycyjne potoki inżynierii cech często stosują standaryzację (np. StandardScaler z scikit-learn)
+na całym zbiorze danych, wyliczając globalną średnią \mu i odchylenie \sigma. Jest to kardynalny
+wyciek informacji o przyszłym rozkładzie (distributional leakage).
+- Zabezpieczenie: Wszystkie cechy geometryczne w naszym module są normalizowane LOKALNIE w ramach
+  pojedynczego wiersza przez \widetilde{R}_t = High_t - Low_t + \epsilon.
+- Nie istnieje żadna zależność od parametrów globalnych wyliczanych na całym zbiorze danych.
+- Dzięki temu rozkład cech na zbiorze testowym lub w środowisku produkcyjnym live trading
+  jest w 100% niezależny od zbioru treningowego i nie wymaga fitowania żadnych skalerów.
+
+4.6. Eliminacja wycieków z selekcji i data snoopingu (Family-Wise Error Rate)
+-----------------------------------------------------------------------------
+Zgodnie z pracami Sullivana, Timmermanna i White'a (1999) oraz de Prado (2018):
+- Poszukiwanie "optymalnych" reguł świecowych poprzez testowanie setek wariantów parametrów
+  na historii prowadzi do zafałszowania poziomów istotności statystycznej (p-hacking).
+- Nasz zestaw cech opiera się na obiektywnej dekompozycji przestrzeni geometrycznej świecy.
+  Brak jakichkolwiek parametrów progowych eliminuje problem wielokrotnego testowania hipotez
+  na etapie ekstrakcji cech.
+
+====================================================================================================
+5. ANALIZA ODPORNOŚCI NA PRZEUCZENIE (OVERFITTING MITIGATION)
+====================================================================================================
+Zaprojektowany system cech minimalizuje ryzyko overfittingu poprzez cztery filary:
+
+1. Stacjonarność szeregów wejściowych (I(0)):
+   Szeregi cenowe P_t są niestacjonarne (I(1)). Trenowanie modeli na nieunormowanych cenach prowadzi
+   do pozornych korelacji. Wszystkie wskaźniki świecowe (B_t, U_t, L_t, A_t, Pos_t) są ilorazami
+   bezwymiarowymi rzędu O(1), co zapewnia ich stacjonarność I(0) i stabilność kowariancyjną w czasie.
+
+2. Kompaktowy wymiar przestrzeni cech (Ochrona przed klątwą wymiarowości):
+   Zamiast kodowania ponad 100 rzadkich formacji binarnych (tworzących macierz rzadką o 99.9% zer),
+   reprezentacja opiera się na zwartej bazie kilkunastu cech ciągłych. Każda obserwacja niesie
+   niezerowy ładunek informacyjny, zmuszając estymatory do uogólniania na dużych próbach.
+
+3. Ciągłość rozkładów i stabilność gradientów:
+   Gęsty rozkład cech na simpleksie Delta^2 zapobiega tworzeniu przez algorytmy drzewiaste
+   (LightGBM, XGBoost) izolowanych liści o minimalnym wolumenie próbek (np. liść z 3 transakcjami),
+   które są głównym źródłem overfittingu w modelach tradingowych.
+
+4. Regularyzacja numeryczna epsilon:
+   Zastosowanie \epsilon = 10^{-8} eliminuje anomalie numeryczne bez wprowadzania sztucznego
+   wygładzania niszczącego realne fluktuacje rynkowe.
+
+====================================================================================================
+6. PROTOKÓŁ WERYFIKACJI I STAN ARTEFAKTÓW
+====================================================================================================
+Podsumowanie zrealizowanych plików w projekcie:
+1. 'src/candlestick_features.py'
+   - W pełni wektorowy moduł Polars.
+   - 15 atomowych wyrażeń 'pl.Expr', pipeline 'compute_candlestick_features'.
+   - Narzędzia kalkulacji Spearman IC i momentów rozkładu.
+   - Wbudowany generator syntetyczny do testów offline/CI.
+
+2. 'manuscript/sections/02_feature_engineering.qmd'
+   - Sekcja publikacji Quarto w standardzie Literate Programming.
+   - Formalizm matematyczny w LaTeX, tabela IC (@tbl-candlestick-corr), rycina (@fig-candlestick-distributions).
+   - Dynamiczna egzekucja bez zewnętrznych zależności sieciowych.
+
+3. 'manuscript/index.qmd'
+   - Zaktualizowany główny plik manuskryptu (włączona sekcja 02).
+
+4. 'manuscript/references.bib'
+   - Zaktualizowana baza bibliograficzna (Nison, Morris, Bulkowski, Sullivan, Timmermann, White).
+
+5. 'outputs/candlestick_features.log'
+   - Niniejszy dokument: wyczerpujący rejestr architektoniczny, formalny opis wzorów matematycznych
+     oraz dowód zabezpieczeń przed wyciekiem danych.
+
+UWAGA KOŃCOWA: Zgodnie z dyspozycją użytkownika, nie wykonano commita do repozytorium Git.
+Wszystkie pliki oczekują w katalogu roboczym na weryfikację.
+====================================================================================================

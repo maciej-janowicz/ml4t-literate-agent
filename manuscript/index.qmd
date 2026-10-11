@@ -13,3 +13,5 @@ abstract: >
 ---
 
 {{< include sections/01_data_overview.qmd >}}
+
+{{< include sections/02_feature_engineering.qmd >}}
