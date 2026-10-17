@@ -17,3 +17,5 @@ abstract: >
 {{< include sections/02_feature_engineering.qmd >}}
 
 {{< include sections/03_target_labeling.qmd >}}
+
+{{< include sections/04_model_training.qmd >}}
